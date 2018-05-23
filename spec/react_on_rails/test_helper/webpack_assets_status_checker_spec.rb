@@ -45,7 +45,7 @@ describe ReactOnRails::TestHelper::WebpackAssetsStatusChecker do
           .and_return(File.join(generated_assets_full_path, "client-bundle-6bc530d039d96709b68d.js"))
         allow(ReactOnRails::Utils).to receive(:bundle_js_file_path)
           .with("server-bundle.js")
-          .and_return(File.join(generated_assets_full_path, "server-bundle-6bc530d039d96702268d.js"))
+          .and_return(File.join(generated_assets_full_path, "server-bundle.js"))
         touch_files_in_dir(generated_assets_full_path)
       end
 
@@ -61,6 +61,31 @@ describe ReactOnRails::TestHelper::WebpackAssetsStatusChecker do
       end
 
       specify { expect(checker.stale_generated_webpack_files).to eq(["manifest.json"]) }
+    end
+
+    context "when using webpacker, a missing server bundle without hash, and manifest is current" do
+      let(:fixture_dirname) { "assets_with_manifest_exist_server_bundle_separate" }
+
+      before do
+        require "webpacker"
+        allow(ReactOnRails::WebpackerUtils).to receive(:using_webpacker?).and_return(true)
+        allow(ReactOnRails::WebpackerUtils).to receive(:manifest_exists?).and_return(true)
+        allow(ReactOnRails::WebpackerUtils).to receive(:webpacker_public_output_path)
+          .and_return(generated_assets_full_path)
+        allow(ReactOnRails.configuration).to receive(:server_bundle_js_file).and_return("server-bundle.js")
+        allow(ReactOnRails::Utils).to receive(:bundle_js_file_path)
+          .with("client-bundle.js")
+          .and_return(File.join(generated_assets_full_path, "client-bundle-6bc530d039d96709b68d.js"))
+        allow(ReactOnRails::Utils).to receive(:bundle_js_file_path)
+          .with("server-bundle.js")
+          .and_raise(Webpacker::Manifest::MissingEntryError)
+        touch_files_in_dir(generated_assets_full_path)
+      end
+
+      specify do
+        expect(checker.stale_generated_webpack_files.first)
+          .to match(/server-bundle\.js$/)
+      end
     end
 
     context "No Webpacker" do
